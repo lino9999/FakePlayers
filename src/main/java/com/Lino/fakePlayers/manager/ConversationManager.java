@@ -2,8 +2,7 @@ package com.Lino.fakePlayers.manager;
 
 import com.Lino.fakePlayers.FakePlayers;
 import com.Lino.fakePlayers.conversation.ConversationTopic;
-import com.Lino.fakePlayers.conversation.MessageDatabase;
-import com.Lino.fakePlayers.entity.FakePlayer;
+import com.Lino.fakePlayers.entity.SimpleFakePlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -21,7 +20,15 @@ public class ConversationManager {
     }
 
     public void startConversations() {
-        conversationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::processConversations, 100L, 60L);
+        if (!plugin.getConfig().getBoolean("conversation.enabled", true)) {
+            return;
+        }
+
+        int minDelay = plugin.getConfig().getInt("conversation.min-delay-seconds", 5) * 20;
+        int maxDelay = plugin.getConfig().getInt("conversation.max-delay-seconds", 15) * 20;
+
+        conversationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::processConversations, 100L,
+                minDelay + random.nextInt(Math.max(1, maxDelay - minDelay)));
     }
 
     public void stopConversations() {
@@ -29,81 +36,124 @@ public class ConversationManager {
             conversationTask.cancel();
             conversationTask = null;
         }
+        lastMessageTime.clear();
+        activeTopics.clear();
     }
 
     private void processConversations() {
-        List<FakePlayer> players = new ArrayList<>(plugin.getFakePlayerManager().getAllFakePlayers());
-        if (players.size() < 2) return;
+        List<SimpleFakePlayer> players = new ArrayList<>(plugin.getFakePlayerManager().getAllFakePlayers());
+        if (players.isEmpty()) return;
 
         long currentTime = System.currentTimeMillis();
 
-        for (FakePlayer player : players) {
-            String name = player.getName();
-            Long lastTime = lastMessageTime.get(name);
+        // Clean up expired topics
+        activeTopics.entrySet().removeIf(entry -> {
+            ConversationTopic topic = entry.getValue();
+            return topic.isExpired();
+        });
 
-            if (lastTime == null || currentTime - lastTime > 5000 + random.nextInt(10000)) {
-                if (random.nextDouble() < 0.3) {
-                    generateConversation(player, players);
-                    lastMessageTime.put(name, currentTime);
-                }
-            }
+        // Select a random fake player to send a message
+        SimpleFakePlayer speaker = players.get(random.nextInt(players.size()));
+        String speakerName = speaker.getName();
+
+        // Check cooldown
+        Long lastTime = lastMessageTime.get(speakerName);
+        if (lastTime != null && currentTime - lastTime < 3000) {
+            return;
         }
 
-        activeTopics.entrySet().removeIf(entry -> currentTime - entry.getValue().getStartTime() > 60000);
+        // Determine conversation type
+        double responseChance = plugin.getConfig().getDouble("conversation.response-chance", 0.4);
+
+        if (random.nextDouble() < responseChance && players.size() > 1) {
+            // Response to another player
+            generateResponse(speaker, players);
+        } else {
+            // New conversation starter
+            generateNewMessage(speaker);
+        }
+
+        lastMessageTime.put(speakerName, currentTime);
     }
 
-    private void generateConversation(FakePlayer initiator, List<FakePlayer> allPlayers) {
-        ConversationTopic topic = activeTopics.get(initiator.getName());
+    private void generateNewMessage(SimpleFakePlayer speaker) {
+        ConversationTopic topic = activeTopics.get(speaker.getName());
 
         if (topic == null || topic.isExpired()) {
             topic = ConversationTopic.randomTopic();
-            activeTopics.put(initiator.getName(), topic);
+            activeTopics.put(speaker.getName(), topic);
         }
 
-        String message = generateMessage(initiator, topic);
+        List<String> messages = plugin.getMessagesConfig().getMessages(topic);
+        if (messages.isEmpty()) return;
 
-        if (random.nextDouble() < 0.4 && allPlayers.size() > 1) {
-            FakePlayer responder = selectResponder(initiator, allPlayers);
-            if (responder != null) {
-                message = "@" + responder.getName() + " " + message;
-                activeTopics.put(responder.getName(), topic);
+        String message = messages.get(random.nextInt(messages.size()));
+        message = personalizeMessage(message, speaker);
 
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    String response = generateResponse(responder, topic, initiator);
-                    responder.sendMessage(response);
-                }, 40L + random.nextInt(60));
-            }
+        speaker.sendMessage(message);
+    }
+
+    private void generateResponse(SimpleFakePlayer responder, List<SimpleFakePlayer> allPlayers) {
+        // Find a player to respond to
+        SimpleFakePlayer target = selectTarget(responder, allPlayers);
+        if (target == null) return;
+
+        ConversationTopic topic = activeTopics.get(target.getName());
+        if (topic == null) {
+            topic = ConversationTopic.randomTopic();
         }
 
-        initiator.sendMessage(message);
+        activeTopics.put(responder.getName(), topic);
+
+        List<String> responses = plugin.getMessagesConfig().getResponses(topic);
+        if (responses.isEmpty()) return;
+
+        String response = responses.get(random.nextInt(responses.size()));
+
+        // Add mention
+        if (random.nextBoolean()) {
+            response = "@" + target.getName() + " " + response;
+        }
+
+        response = personalizeMessage(response, responder);
+
+        // Delay the response slightly
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            responder.sendMessage(response);
+        }, 20L + random.nextInt(40));
     }
 
-    private String generateMessage(FakePlayer player, ConversationTopic topic) {
-        List<String> messages = MessageDatabase.getMessages(topic);
-        String template = messages.get(random.nextInt(messages.size()));
-        return personalizeMessage(template, player);
+    private SimpleFakePlayer selectTarget(SimpleFakePlayer speaker, List<SimpleFakePlayer> players) {
+        List<SimpleFakePlayer> candidates = new ArrayList<>(players);
+        candidates.remove(speaker);
+
+        if (candidates.isEmpty()) return null;
+
+        // Prefer players who recently spoke
+        candidates.sort((a, b) -> {
+            Long timeA = lastMessageTime.getOrDefault(a.getName(), 0L);
+            Long timeB = lastMessageTime.getOrDefault(b.getName(), 0L);
+            return timeB.compareTo(timeA);
+        });
+
+        // Higher chance to respond to recent speakers
+        if (random.nextDouble() < 0.7 && !candidates.isEmpty()) {
+            return candidates.get(0);
+        }
+
+        return candidates.get(random.nextInt(candidates.size()));
     }
 
-    private String generateResponse(FakePlayer responder, ConversationTopic topic, FakePlayer initiator) {
-        List<String> responses = MessageDatabase.getResponses(topic);
-        String template = responses.get(random.nextInt(responses.size()));
-        template = "@" + initiator.getName() + " " + template;
-        return personalizeMessage(template, responder);
-    }
-
-    private String personalizeMessage(String template, FakePlayer player) {
+    private String personalizeMessage(String template, SimpleFakePlayer player) {
         template = template.replace("{player}", player.getName());
         template = template.replace("{time}", getTimeOfDay());
-        template = template.replace("{world}", player.getBukkitEntity().getWorld().getName());
-        template = template.replace("{online}", String.valueOf(Bukkit.getOnlinePlayers().size()));
-        return template;
-    }
+        template = template.replace("{world}", player.getLocation().getWorld().getName());
+        template = template.replace("{online}", String.valueOf(Bukkit.getOnlinePlayers().size() + plugin.getFakePlayerManager().getFakePlayerCount()));
+        template = template.replace("{x}", String.valueOf((int) player.getLocation().getX()));
+        template = template.replace("{y}", String.valueOf((int) player.getLocation().getY()));
+        template = template.replace("{z}", String.valueOf((int) player.getLocation().getZ()));
 
-    private FakePlayer selectResponder(FakePlayer initiator, List<FakePlayer> players) {
-        List<FakePlayer> candidates = new ArrayList<>(players);
-        candidates.remove(initiator);
-        if (candidates.isEmpty()) return null;
-        return candidates.get(random.nextInt(candidates.size()));
+        return template;
     }
 
     private String getTimeOfDay() {
@@ -112,5 +162,10 @@ public class ConversationManager {
         else if (time < 12000) return "day";
         else if (time < 18000) return "evening";
         else return "night";
+    }
+
+    public void triggerConversation(SimpleFakePlayer player) {
+        generateNewMessage(player);
+        lastMessageTime.put(player.getName(), System.currentTimeMillis());
     }
 }

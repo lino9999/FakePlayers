@@ -1,51 +1,64 @@
 package com.Lino.fakePlayers.entity;
 
+import com.Lino.fakePlayers.FakePlayers;
 import java.util.*;
 
 public class NameGenerator {
-    private static final List<String> prefixes = Arrays.asList(
-            "Pro", "Epic", "Cool", "Dark", "Fire", "Ice", "Storm", "Shadow", "Light", "Crystal",
-            "Thunder", "Dragon", "Phoenix", "Wolf", "Eagle", "Tiger", "Bear", "Fox", "Hawk", "Raven"
-    );
-
-    private static final List<String> names = Arrays.asList(
-            "Player", "Gamer", "Master", "Lord", "King", "Knight", "Warrior", "Mage", "Hunter", "Ninja",
-            "Samurai", "Wizard", "Champion", "Legend", "Hero", "Guardian", "Defender", "Slayer", "Reaper", "Phantom"
-    );
-
-    private static final List<String> suffixes = Arrays.asList(
-            "123", "456", "789", "007", "420", "666", "777", "2000", "3000", "9000",
-            "XD", "YT", "TV", "GG", "OP", "HD", "4K", "Pro", "Max", "Plus"
-    );
-
     private static final Set<String> usedNames = new HashSet<>();
     private static final Random random = new Random();
 
     public static String generateRandomName() {
-        String name;
+        FakePlayers plugin = FakePlayers.getInstance();
+        if (plugin == null || plugin.getNamesConfig() == null) {
+            return generateFallbackName();
+        }
+
+        List<String> prefixes = plugin.getNamesConfig().getPrefixes();
+        List<String> names = plugin.getNamesConfig().getNames();
+        List<String> suffixes = plugin.getNamesConfig().getSuffixes();
+
+        String generatedName;
         int attempts = 0;
 
         do {
             StringBuilder sb = new StringBuilder();
 
-            if (random.nextBoolean()) {
+            // Randomly add a prefix (50% chance)
+            if (random.nextBoolean() && !prefixes.isEmpty()) {
                 sb.append(prefixes.get(random.nextInt(prefixes.size())));
             }
 
-            sb.append(names.get(random.nextInt(names.size())));
+            // Always add a main name
+            if (!names.isEmpty()) {
+                sb.append(names.get(random.nextInt(names.size())));
+            } else {
+                sb.append("Player");
+            }
 
-            if (random.nextBoolean() || attempts > 5) {
+            // Randomly add a suffix (50% chance, or always after 5 attempts to ensure uniqueness)
+            if ((random.nextBoolean() || attempts > 5) && !suffixes.isEmpty()) {
                 sb.append(suffixes.get(random.nextInt(suffixes.size())));
             }
 
-            name = sb.toString();
+            generatedName = sb.toString();
             attempts++;
 
+            // After 20 attempts, just append a timestamp to ensure uniqueness
             if (attempts > 20) {
-                name = "Player" + System.currentTimeMillis() % 10000;
+                generatedName = "Player" + System.currentTimeMillis() % 10000;
                 break;
             }
-        } while (usedNames.contains(name) || name.length() > 16);
+        } while (usedNames.contains(generatedName) || generatedName.length() > 16);
+
+        usedNames.add(generatedName);
+        return generatedName;
+    }
+
+    private static String generateFallbackName() {
+        String name;
+        do {
+            name = "Player" + random.nextInt(10000);
+        } while (usedNames.contains(name));
 
         usedNames.add(name);
         return name;
@@ -53,5 +66,13 @@ public class NameGenerator {
 
     public static void clearUsedNames() {
         usedNames.clear();
+    }
+
+    public static boolean isNameUsed(String name) {
+        return usedNames.contains(name);
+    }
+
+    public static void addUsedName(String name) {
+        usedNames.add(name);
     }
 }

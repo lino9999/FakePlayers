@@ -1,6 +1,6 @@
-package com.example.fakeplayers.manager;
+package com.Lino.fakePlayers.manager;
 
-import com.example.fakeplayers.FakePlayers;
+import com.Lino.fakePlayers.FakePlayers;
 import org.bukkit.event.server.ServerListPingEvent;
 
 public class ServerListManager {
@@ -9,6 +9,7 @@ public class ServerListManager {
 
     public ServerListManager(FakePlayers plugin) {
         this.plugin = plugin;
+        this.additionalPlayers = plugin.getConfig().getInt("server-list.additional-players", 0);
     }
 
     public void setAdditionalPlayers(int count) {
@@ -24,7 +25,8 @@ public class ServerListManager {
         int totalAdditional = fakePlayers + additionalPlayers;
 
         if (totalAdditional > 0) {
-            event.setMaxPlayers(event.getMaxPlayers() + totalAdditional);
+            // Increase the online player count shown in server list
+            event.setNumPlayers(event.getNumPlayers() + totalAdditional);
         }
     }
 }
