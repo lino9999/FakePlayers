@@ -65,6 +65,9 @@ public class FakePlayers extends JavaPlugin {
         if (conversationManager != null) {
             conversationManager.stopConversations();
         }
+        if (serverListManager != null) {
+            serverListManager.shutdown();
+        }
         if (fakePlayerManager != null) {
             fakePlayerManager.removeAllFakePlayers();
         }

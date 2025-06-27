@@ -147,6 +147,7 @@ public class FakePlayerCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+
     private void handleSetCount(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage("§cUsage: /fakeplayer setcount <count>");
@@ -164,7 +165,12 @@ public class FakePlayerCommand implements CommandExecutor, TabCompleter {
             plugin.getConfig().set("server-list.additional-players", count);
             plugin.saveConfig();
 
-            sender.sendMessage("§aServer list will show " + count + " additional players!");
+            if (plugin.getServerListManager().isProtocolLibAvailable()) {
+                sender.sendMessage("§aServer list will show " + count + " additional players!");
+            } else {
+                sender.sendMessage("§eProtocolLib not found! Install ProtocolLib to use this feature.");
+                sender.sendMessage("§7Download from: https://www.spigotmc.org/resources/protocollib.1997/");
+            }
         } catch (NumberFormatException e) {
             sender.sendMessage("§cInvalid number!");
         }

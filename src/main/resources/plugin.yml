@@ -4,11 +4,12 @@ main: com.Lino.fakePlayers.FakePlayers
 api-version: '1.21'
 author: Lino
 description: Creates fake players that chat and interact
+softdepend: [ProtocolLib]
 
 commands:
   fakeplayer:
     description: Main command for FakePlayers
-    usage: /<command> [add|remove|list|clear|random|setcount|chat]
+    usage: /<command> [add|remove|list|clear|random|setcount|chat|reload]
     aliases: [fp, fakep]
     permission: fakeplayers.admin
 
