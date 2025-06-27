@@ -1,9 +1,9 @@
 package com.Lino.fakePlayers.manager;
 
-import com.example.fakeplayers.FakePlayers;
-import com.example.fakeplayers.conversation.ConversationTopic;
-import com.example.fakeplayers.conversation.MessageDatabase;
-import com.example.fakeplayers.entity.FakePlayer;
+import com.Lino.fakePlayers.FakePlayers;
+import com.Lino.fakePlayers.conversation.ConversationTopic;
+import com.Lino.fakePlayers.conversation.MessageDatabase;
+import com.Lino.fakePlayers.entity.FakePlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
