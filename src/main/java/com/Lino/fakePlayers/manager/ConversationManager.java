@@ -93,6 +93,7 @@ public class ConversationManager {
         speaker.sendMessage(message);
     }
 
+
     private void generateResponse(SimpleFakePlayer responder, List<SimpleFakePlayer> allPlayers) {
         // Find a player to respond to
         SimpleFakePlayer target = selectTarget(responder, allPlayers);
@@ -115,11 +116,12 @@ public class ConversationManager {
             response = "@" + target.getName() + " " + response;
         }
 
-        response = personalizeMessage(response, responder);
+        // Make response final for lambda
+        final String finalResponse = personalizeMessage(response, responder);
 
         // Delay the response slightly
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            responder.sendMessage(response);
+            responder.sendMessage(finalResponse);
         }, 20L + random.nextInt(40));
     }
 

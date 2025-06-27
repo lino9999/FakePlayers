@@ -48,23 +48,17 @@ public class ServerListManager {
 
                     if (ping == null) return;
 
-                    int fakePlayers = plugin.getFakePlayerManager().getFakePlayerCount();
+                    // Cast to FakePlayers to access our methods
+                    FakePlayers fp = (FakePlayers) plugin;
+                    int fakePlayers = fp.getFakePlayerManager().getFakePlayerCount();
                     int totalAdditional = fakePlayers + additionalPlayers;
 
                     if (totalAdditional > 0) {
                         // Modify player count
-                        WrappedServerPing.PlayerData playerData = ping.getPlayers();
-                        if (playerData != null) {
-                            int currentOnline = playerData.getOnline();
-                            int newOnline = currentOnline + totalAdditional;
+                        ping.setPlayersOnline(ping.getPlayersOnline() + totalAdditional);
 
-                            // Create new player data with modified count
-                            playerData.setOnline(newOnline);
-                            ping.setPlayers(playerData);
-
-                            // Write back the modified ping
-                            packet.getServerPings().write(0, ping);
-                        }
+                        // Write back the modified ping
+                        packet.getServerPings().write(0, ping);
                     }
                 } catch (Exception e) {
                     plugin.getLogger().warning("Error modifying server list ping: " + e.getMessage());
