@@ -1,6 +1,5 @@
 package com.Lino.fakePlayers.entity;
 
-import com.mojang.authlib.GameProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -14,14 +13,12 @@ import java.util.UUID;
 public class SimpleFakePlayer {
     private final String name;
     private final UUID uuid;
-    private final GameProfile profile;
     private Location location;
     private long lastMessageTime = 0;
 
     public SimpleFakePlayer(String name, Location location) {
         this.name = name;
         this.uuid = UUID.randomUUID();
-        this.profile = new GameProfile(uuid, name);
         this.location = location;
     }
 
@@ -31,10 +28,6 @@ public class SimpleFakePlayer {
 
     public UUID getUUID() {
         return uuid;
-    }
-
-    public GameProfile getProfile() {
-        return profile;
     }
 
     public Location getLocation() {
@@ -59,8 +52,10 @@ public class SimpleFakePlayer {
     }
 
     public void sendActionBar(String message) {
+        // Send as regular message prefixed with player name
+        // Since sendActionBar requires newer API versions
         for (Player player : Bukkit.getOnlinePlayers()) {
-            player.sendActionBar("§7[" + name + "] " + message);
+            player.sendMessage("§7[" + name + "] " + message);
         }
     }
 
