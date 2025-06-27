@@ -1,0 +1,19 @@
+conversation:
+  enabled: true
+  min-delay-seconds: 5
+  max-delay-seconds: 15
+  response-chance: 0.4
+  greeting-chance: 0.3
+  farewell-chance: 0.2
+
+fake-players:
+  max-count: 100
+  spawn-radius: 20
+
+server-list:
+  additional-players: 0
+
+auto-spawn:
+  enabled: false
+  count: 10
+  on-startup: true
